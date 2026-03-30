@@ -19,11 +19,10 @@
 
 <br/>
 
-![Vercel](https://img.shields.io/badge/Frontend-Vercel-000?style=flat-square&logo=vercel)
-![Railway](https://img.shields.io/badge/Backend-Railway-0B0D0E?style=flat-square&logo=railway)
+
 ![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=flat-square)
-![Hackathon](https://img.shields.io/badge/IEEE_Hackathon-2025-orange?style=flat-square)
+
 
 </div>
 
