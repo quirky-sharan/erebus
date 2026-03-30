@@ -23,6 +23,7 @@ class SatelliteData(BaseModel):
     launch_date: Optional[str] = "Unknown"
     mission_type: Optional[str] = "Unknown"
     status: Optional[str] = "Unknown"
+    orbit_type: str = "LEO"
 
 SPACE_TRACK_LOGIN_URL = "https://www.space-track.org/auth/login"
 SPACE_TRACK_LOGOUT_URL = "https://www.space-track.org/ajaxauth/logout"
@@ -94,93 +95,182 @@ async def _fetch_space_track_metadata(client: httpx.AsyncClient, norad_cat_id: s
     return {}
 
 async def fetch_satellite(name_or_id: str) -> SatelliteData:
-    # 1. CelesTrak TLE fetch
+    """Fetch live TLE from CelesTrak and metadata from Space-Track."""
     async with httpx.AsyncClient() as client:
-        # Try by name first, if it looks like an ID, try CATNR
+        # Step 1: CelesTrak Lookup
+        # Prefer GP (General Perturbations) endpoint for TLE accuracy
         if name_or_id.isdigit():
-            url = f"https://celestrak.org/GSAT/query.php?CATNR={name_or_id}&FORMAT=JSON"
+            url = f"https://celestrak.org/NORAD/elements/gp.php?CATNR={name_or_id}&FORMAT=JSON"
         else:
+            # Fallback to general search if it's a name
             url = f"https://celestrak.org/GSAT/query.php?NAME={name_or_id}&FORMAT=JSON"
         
+        print(f"[Satellite] Searching CelesTrak for: '{name_or_id}'")
         response = await client.get(url)
         if response.status_code != 200 or not response.json():
-            # Try fallback to CATNR if name failed
-            url = f"https://celestrak.org/GSAT/query.php?CATNR={name_or_id}&FORMAT=JSON"
-            response = await client.get(url)
+            # Retry with legacy endpoint if GP failed
+            if name_or_id.isdigit():
+                url = f"https://celestrak.org/GSAT/query.php?CATNR={name_or_id}&FORMAT=JSON"
+                response = await client.get(url)
+            
             if response.status_code != 200 or not response.json():
-                raise Exception("Satellite not found in CelesTrak")
+                print(f"[Satellite] Error: '{name_or_id}' NOT FOUND in CelesTrak (Status: {response.status_code})")
+                raise Exception(f"Satellite '{name_or_id}' not found in CelesTrak")
+        
+        results = response.json()
+        print(f"[Satellite] Found {len(results)} matches for '{name_or_id}'. Returning first match.")
+        data = results[0]
+        # Some endpoints use different field names
+        tle1 = data.get('TLE_LINE1') or data.get('TLE1')
+        tle2 = data.get('TLE_LINE2') or data.get('TLE2')
+        norad_id = str(data.get('NORAD_CAT_ID') or data.get('CATNR'))
+        sat_name = data.get('OBJECT_NAME') or data.get('NAME')
 
-        data = response.json()[0]
-        tle1 = data['TLE_LINE1']
-        tle2 = data['TLE_LINE2']
-        norad_id = str(data['NORAD_CAT_ID'])
-        sat_name = data['OBJECT_NAME']
+        if not (tle1 and tle2):
+             raise Exception(f"TLE data missing for {sat_name}")
 
-        # 2. Derive orbital parameters using SGP4
-        satellite = Satrec.twoline2rv(tle1, tle2)
+        # Step 2: Derive orbital parameters using SGP4
+        satrec = Satrec.twoline2rv(tle1, tle2)
         
         # Mean motion in radians per minute
-        # n = mean motion from TLE (revs per day)
-        # Convert to rad/min: n * (2*pi / 1440)
-        n = satellite.no_kozai  # mean motion in rad/min
+        n = satrec.no_kozai  # rad/min
         
-        # Semi-major axis a = (GM / n^2)^(1/3)
         # GM for Earth = 3.986004418e14 m^3/s^2
-        # Convert n to rad/s: n / 60
         gm = 3.986004418e14
+        # a = (GM / n^2)^(1/3)
+        # Convert n to rad/s: n / 60
         a = (gm / (n/60)**2)**(1/3) / 1000  # in km
         
-        earth_radius = 6371.0
+        earth_radius = 6378.137  # WGS84 semi-major axis in km
         altitude = a - earth_radius
         
-        inclination = np.degrees(satellite.inclo)
-        eccentricity = satellite.ecco
-        period = 1440.0 / (n * 1440.0 / (2 * np.pi)) # 1440 / (revs per day)
+        inclination = np.degrees(satrec.inclo)
+        eccentricity = satrec.ecco
+        # period = 2*pi / n (rad/min) -> mins
+        period = (2 * np.pi) / n
         
         apogee = a * (1 + eccentricity) - earth_radius
         perigee = a * (1 - eccentricity) - earth_radius
 
-        # 3. Space-Track metadata fetch (requires credentials via env vars)
-        # Keep ST session cookies within this request lifecycle.
+        # Status normalization
+        raw_status = data.get('OPERATIONAL_STATUS') or data.get('STATUS') or status
+        if raw_status in ("+", "A"): status = "Active"
+        elif raw_status in ("-", "D"): status = "Defunct"
+        
+        orbit_type = "LEO" if altitude < 2000 else ("GEO" if altitude >= 35786 else "MEO")
+
+        # Step 3: Space-Track metadata fetch (Optional/Best-effort)
         operator = "Unknown"
         country = "Unknown"
-        launch_date = "Unknown"
-        mission_type = "Satellite"
-        status = "Active"
+        launch_date = data.get('LAUNCH_DATE') or "Unknown"
+        mission_type = data.get('OBJECT_TYPE') or "Satellite"
+        status = data.get('OPERATIONAL_STATUS') or "Active"
 
-        try:
-            await _login_space_track(client)
-            st = await _fetch_space_track_metadata(client, norad_id)
-
-            country = st.get("COUNTRY") or country
-            launch_date = st.get("LAUNCH_DATE") or st.get("LAUNCH") or launch_date
-            mission_type = st.get("OBJECT_TYPE") or mission_type
-            status = st.get("OPERATIONAL_STATUS") or st.get("STATUS") or status
-
-            # Space-Track SATCAT often doesn't return a clear "operator" field.
-            # Best-effort mapping (kept explicit to avoid wrong assumptions).
-            operator = st.get("OWNER") or st.get("OPERATOR") or operator
-        finally:
-            # Try to log out, but never fail the whole request if it errors.
+        # Only attempt Space-Track if credentials exist
+        if os.environ.get("SPACE_TRACK_USER") and os.environ.get("SPACE_TRACK_PASS"):
             try:
-                await client.get(SPACE_TRACK_LOGOUT_URL)
-            except Exception:
-                pass
+                await _login_space_track(client)
+                st = await _fetch_space_track_metadata(client, norad_id)
+
+                country = st.get("COUNTRY") or country
+                launch_date = st.get("LAUNCH_DATE") or st.get("LAUNCH") or launch_date
+                mission_type = st.get("OBJECT_TYPE") or mission_type
+                
+                # Normalize status
+                raw_status = st.get("OPERATIONAL_STATUS") or st.get("STATUS") or status
+                if raw_status in ("+", "A"): status = "Active"
+                elif raw_status in ("-", "D"): status = "Defunct"
+                elif raw_status == "P": status = "Partially Operational"
+                else: status = raw_status
+
+                operator = st.get("OWNER") or st.get("OPERATOR") or operator
+            except Exception as e:
+                print(f"[Satellite] Space-Track fetch failed: {e}")
+            finally:
+                try:
+                    await client.get(SPACE_TRACK_LOGOUT_URL)
+                except Exception:
+                    pass
 
         return SatelliteData(
             name=sat_name,
             norad_id=norad_id,
             tle1=tle1,
             tle2=tle2,
-            altitude=round(altitude, 2),
+            altitude=round(max(0, altitude), 2),
             inclination=round(inclination, 2),
             period=round(period, 2),
             eccentricity=round(eccentricity, 6),
-            apogee=round(apogee, 2),
-            perigee=round(perigee, 2),
+            apogee=round(max(0, apogee), 2),
+            perigee=round(max(0, perigee), 2),
             operator=operator,
             country=country,
             launch_date=launch_date,
             mission_type=mission_type,
-            status=status
+            status=status,
+            orbit_type=orbit_type
         )
+
+async def fetch_satellite_group(group: str) -> list[SatelliteData]:
+    """Fetch a group of satellites from CelesTrak (e.g. STATIONS, GEO, WEATHER)."""
+    # Mapping friendly names to CelesTrak group query params
+    group_map = {
+        'LEO': 'STATIONS',
+        'GEO': 'GEO',
+        'ACTIVE': 'VISUAL',
+        'WEATHER': 'WEATHER',
+        'ALL': 'STATIONS'
+    }
+    target = group_map.get(group.upper(), 'STATIONS')
+    url = f"https://celestrak.org/NORAD/elements/gp.php?GROUP={target}&FORMAT=JSON"
+    
+    async with httpx.AsyncClient() as client:
+        print(f"[Satellite] Fetching group cluster: '{target}'")
+        resp = await client.get(url)
+        if resp.status_code != 200:
+            return []
+            
+        raw_list = resp.json()
+        results = []
+        
+        # We only take the first 50 for performance reasons in the UI
+        for data in raw_list[:50]:
+            try:
+                # Basic normalization for group data
+                tle1 = data.get('TLE_LINE1') or data.get('TLE1')
+                tle2 = data.get('TLE_LINE2') or data.get('TLE2')
+                norad_id = str(data.get('NORAD_CAT_ID') or data.get('CATNR'))
+                sat_name = data.get('OBJECT_NAME') or data.get('NAME')
+                
+                if not (tle1 and tle2): continue
+                
+                # Derive orbital parameters (Simplified for group view, real-time detail on selection)
+                satrec = Satrec.twoline2rv(tle1, tle2)
+                n = satrec.no_kozai
+                gm = 3.986004418e14
+                a = (gm / (n/60)**2)**(1/3) / 1000
+                earth_radius = 6378.137
+                altitude = a - earth_radius
+                
+                results.append(SatelliteData(
+                    name=sat_name,
+                    norad_id=norad_id,
+                    tle1=tle1,
+                    tle2=tle2,
+                    altitude=round(max(0, altitude), 2),
+                    inclination=round(np.degrees(satrec.inclo), 2),
+                    period=round((2 * np.pi) / n, 2),
+                    eccentricity=round(satrec.ecco, 6),
+                    apogee=round(max(0, a * (1 + satrec.ecco) - earth_radius), 2),
+                    perigee=round(max(0, a * (1 - satrec.ecco) - earth_radius), 2),
+                    country=data.get('COUNTRY_CODE') or "Unknown",
+                    status=data.get('OPERATIONAL_STATUS') or "Active",
+                    orbit_type="LEO" if altitude < 2000 else ("GEO" if altitude >= 35786 else "MEO")
+                ))
+            except Exception as e:
+                print(f"[Satellite] Skipping malformed record: {e}")
+                continue
+                
+        print(f"[Satellite] Cluster fetch complete. Loaded {len(results)} mission nodes.")
+        return results
+

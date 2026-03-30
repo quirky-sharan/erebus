@@ -2,25 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { useLocation } from 'react-router-dom';
-import { Navbar } from '../components/Navbar';
-import StarfieldCanvas from '../components/StarfieldCanvas';
 import { useAuth } from '../hooks/useAuth';
-import { ShieldCheck, Loader2, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, Loader2, AlertTriangle, Activity, Database, FileText } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-const frameworkBadge = (frameworkStatus) => {
-  const status = (frameworkStatus || '').toLowerCase();
-  if (status.includes('compliant')) {
-    return 'text-green-400 border-green-500/20 bg-green-500/10';
-  }
-  if (status.includes('at risk')) {
-    return 'text-gold border-gold/20 bg-gold/10';
-  }
-  if (status.includes('non-compliant')) {
-    return 'text-gold border-gold/20 bg-gold/10';
-  }
-  return 'text-text-muted border-cyan/20 bg-cyan/10';
+const frameworkBadge = (status) => {
+  const s = (status || '').toLowerCase();
+  if (s.includes('compliant')) return 'text-green-400 bg-green-500/10 border-green-500/20';
+  if (s.includes('at risk')) return 'text-amber bg-amber/10 border-amber/20';
+  return 'text-text-dimmed bg-white/5 border-white/10';
 };
 
 const Compliance = () => {
@@ -40,53 +31,38 @@ const Compliance = () => {
       setError(null);
       try {
         const token = await user.getIdToken();
+        const dec = await axios.post(`${API_BASE_URL}/api/deorbit`, {
+          altitude: Number(sat.altitude),
+          inclination: Number(sat.inclination),
+          mass: 500, area: 5,
+        }, { headers: { Authorization: `Bearer ${token}` } });
 
-        const dec = await axios.post(
-          `${API_BASE_URL}/api/deorbit`,
-          {
-            altitude: Number(sat.altitude),
-            inclination: Number(sat.inclination),
-            mass: 500,
-            area: 5,
-          },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        const comp = await axios.post(
-          `${API_BASE_URL}/api/compliance`,
-          {
-            sat_data: sat,
-            deorbit_years: Number(dec.data.years_mean),
-          },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const comp = await axios.post(`${API_BASE_URL}/api/compliance`, {
+          sat_data: sat,
+          deorbit_years: Number(dec.data.years_mean),
+        }, { headers: { Authorization: `Bearer ${token}` } });
 
         setDeorbit(dec.data);
         setCompliance(comp.data);
       } catch {
-        setError('Failed to compute compliance.');
-        setDeorbit(null);
-        setCompliance(null);
+        setError('Compliance analysis protocol failed.');
       } finally {
         setLoading(false);
       }
     };
-
     run();
   }, [sat, user]);
 
   if (!sat) {
     return (
-      <div className="min-h-screen bg-void pt-24 pb-20 px-6 overflow-hidden">
-        <Navbar />
-        <StarfieldCanvas />
-        <div className="container mx-auto max-w-4xl relative z-10">
-          <div className="glass rounded-[2.5rem] p-10 border border-dashed border-cyan/20 flex items-center gap-4">
-            <AlertTriangle className="w-8 h-8 text-gold" />
-            <div>
-              <h2 className="text-2xl font-display font-bold text-white mb-2">No satellite loaded</h2>
-              <p className="text-text-muted">Open a satellite from Search first.</p>
-            </div>
+      <div className="h-full flex items-center justify-center">
+        <div className="glass p-12 rounded-[3rem] rim-highlight flex items-center gap-6 max-w-xl">
+          <div className="w-16 h-16 rounded-2xl bg-amber/10 border border-amber/20 flex items-center justify-center">
+            <AlertTriangle className="w-8 h-8 text-amber" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-2">Node Isolation Failed</h2>
+            <p className="text-sm text-text-dimmed leading-relaxed">System requires a designated mission node to initialize compliance verification. Please select a satellite from the central repository.</p>
           </div>
         </div>
       </div>
@@ -94,112 +70,122 @@ const Compliance = () => {
   }
 
   return (
-    <div className="min-h-screen bg-void pt-24 pb-20 px-6 overflow-hidden">
-      <Navbar />
-      <StarfieldCanvas />
-
-      <div className="container mx-auto max-w-7xl relative z-10">
-        <motion.header
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="mb-10"
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <ShieldCheck className="w-6 h-6 text-cyan" />
-            <h1 className="text-4xl font-display font-bold text-white">Regulatory Compliance Engine</h1>
+    <div className="space-y-10 pb-20">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <div className="flex items-center gap-3 mb-3 px-3 py-1 bg-cobalt/5 border border-cobalt/10 rounded-full w-fit">
+            <ShieldCheck className="w-3 h-3 text-cobalt" />
+            <span className="text-[10px] font-black tracking-[0.2em] text-cobalt uppercase">Protocol Verification</span>
           </div>
-          <p className="text-text-muted max-w-2xl">
-            Framework-by-framework verdicts driven by the physics-based deorbit prediction.
-          </p>
-        </motion.header>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tighter text-white">Compliance Console</h1>
+        </div>
+        
+        <div className="flex items-center gap-4 text-right">
+          <div className="px-5 py-3 glass rounded-2xl rim-highlight">
+            <p className="text-[9px] font-black text-text-dimmed uppercase tracking-widest leading-none mb-1">Target Mission</p>
+            <p className="text-lg font-mono font-bold text-white leading-none tracking-tight">{sat.name}</p>
+          </div>
+        </div>
+      </header>
 
-        <AnimatePresence mode="wait">
-          {loading ? (
-            <motion.div
-              key="loading"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="glass p-8 rounded-[2.5rem] border border-cyan/10 flex items-center gap-3 justify-center"
-            >
-              <Loader2 className="w-6 h-6 animate-spin text-cyan" />
-              <span className="text-text-muted font-mono">Running compliance checks…</span>
-            </motion.div>
-          ) : null}
-
-          {error ? (
-            <motion.div
-              key="error"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="glass p-8 rounded-[2.5rem] border border-cyan/10"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <AlertTriangle className="w-6 h-6 text-gold" />
-                <h2 className="text-white font-bold">Compliance failed</h2>
-              </div>
-              <p className="text-text-muted">{error}</p>
-            </motion.div>
-          ) : null}
-
-          {compliance ? (
-            <motion.div
-              key="content"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="space-y-6"
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="glass p-6 rounded-[2rem] border border-cyan/10">
-                  <div className="text-text-muted text-xs font-mono">Predicted deorbit mean</div>
-                  <div className="text-4xl font-display font-bold text-cyan mt-1">
-                    {deorbit?.years_mean} <span className="text-[14px] text-text-muted ml-2">years</span>
-                  </div>
-                  <div className="text-text-muted text-sm mt-2">
-                    95% CI: {deorbit?.confidence_interval_95?.[0]}–{deorbit?.confidence_interval_95?.[1]} years
-                  </div>
+      <AnimatePresence mode="wait">
+        {loading ? (
+          <motion.div
+            key="loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="glass p-12 rounded-[3rem] rim-highlight flex flex-col items-center justify-center gap-4 text-center min-h-[400px]"
+          >
+            <Loader2 className="w-12 h-12 animate-spin text-cobalt mb-4" />
+            <h3 className="text-xl font-bold text-white">Running Analysis Protocols...</h3>
+            <p className="text-[10px] font-mono text-text-dimmed uppercase tracking-widest">Simulating deorbit trajectories • Verifying regulatory adherence</p>
+          </motion.div>
+        ) : error ? (
+          <motion.div
+            key="error"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass p-12 rounded-[3rem] border border-amber/10 text-center"
+          >
+            <AlertTriangle className="w-12 h-12 text-amber mx-auto mb-6" />
+            <h3 className="text-xl font-bold text-white mb-2">Protocol Disruption</h3>
+            <p className="text-text-dimmed text-sm mb-6 max-w-sm mx-auto">{error}</p>
+            <button onClick={() => window.location.reload()} className="px-8 py-3 bg-white text-void font-black text-[10px] tracking-widest uppercase rounded-xl">Retry Analysis</button>
+          </motion.div>
+        ) : compliance ? (
+          <motion.div
+            key="content"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-8"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="glass p-8 rounded-[2.5rem] rim-highlight">
+                <div className="flex items-center gap-3 mb-4">
+                  <Activity className="w-4 h-4 text-cobalt" />
+                  <span className="text-[10px] font-black tracking-widest text-text-dimmed uppercase">Decay Projection</span>
                 </div>
-
-                <div className="glass p-6 rounded-[2rem] border border-cyan/10">
-                  <div className="text-text-muted text-xs font-mono">Satellite</div>
-                  <div className="text-2xl font-display font-bold text-white mt-1">{sat.name}</div>
-                  <div className="text-text-muted text-sm mt-2">
-                    NORAD ID: <span className="text-white font-mono">{sat.norad_id}</span>
-                  </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-mono font-bold text-white tracking-tight">{deorbit?.years_mean}</span>
+                  <span className="text-xs font-black text-cobalt/60 uppercase">Mean Yars</span>
                 </div>
+                <p className="text-[10px] text-text-dimmed mt-4 font-mono font-bold leading-tight">95% CI: {deorbit?.confidence_interval_95?.[0]}–{deorbit?.confidence_interval_95?.[1]} yrs</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {compliance.results?.map((r) => (
-                  <motion.div
-                    key={r.framework}
-                    whileHover={{ y: -4, boxShadow: '0 0 20px rgba(0,194,255,0.15)' }}
-                    className="glass p-6 rounded-[2rem] border border-cyan/10"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-white font-bold text-xl">{r.framework}</div>
-                        <div className="text-text-muted text-sm mt-1">{r.rule_text}</div>
-                      </div>
-                      <div
-                        className={`px-3 py-2 rounded-full border text-xs font-bold whitespace-nowrap ${frameworkBadge(
-                          r.status
-                        )}`}
-                      >
-                        {r.status}
-                      </div>
+              <div className="glass p-8 rounded-[2.5rem] rim-highlight md:col-span-2 flex flex-col justify-center">
+                 <div className="flex items-center gap-3 mb-4">
+                    <Database className="w-4 h-4 text-cobalt" />
+                    <span className="text-[10px] font-black tracking-widest text-text-dimmed uppercase">Metadata Isolation</span>
+                 </div>
+                 <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                    <div>
+                        <p className="text-[9px] font-black text-text-dimmed uppercase mb-1">NORAD ID</p>
+                        <p className="text-sm font-mono font-bold text-white">{sat.norad_id}</p>
                     </div>
-                    <div className="mt-4 text-text-muted text-sm leading-relaxed">{r.reason}</div>
-                  </motion.div>
-                ))}
+                    <div>
+                        <p className="text-[9px] font-black text-text-dimmed uppercase mb-1">Orbit Class</p>
+                        <p className="text-sm font-mono font-bold text-white">{Number(sat.altitude) < 2000 ? 'LEO' : 'GEO'}</p>
+                    </div>
+                    <div>
+                        <p className="text-[9px] font-black text-text-dimmed uppercase mb-1">Inclination</p>
+                        <p className="text-sm font-mono font-bold text-white">{sat.inclination}°</p>
+                    </div>
+                    <div>
+                        <p className="text-[9px] font-black text-text-dimmed uppercase mb-1">Country</p>
+                        <p className="text-sm font-mono font-bold text-white">{sat.country || 'USA'}</p>
+                    </div>
+                 </div>
               </div>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-      </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {compliance.results?.map((r, i) => (
+                <motion.div
+                  key={r.framework}
+                  initial={{ opacity: 0, x: i % 2 === 0 ? -10 : 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                  className="glass p-8 rounded-[2.5rem] rim-highlight relative group"
+                >
+                  <div className="flex items-start justify-between mb-6">
+                    <div>
+                      <h3 className="text-xl font-bold text-white group-hover:text-cobalt transition-colors">{r.framework}</h3>
+                      <p className="text-[10px] font-bold text-text-dimmed uppercase tracking-wider mt-1">{r.rule_text}</p>
+                    </div>
+                    <div className={`px-4 py-2 rounded-xl border text-[9px] font-black tracking-widest uppercase ${frameworkBadge(r.status)}`}>
+                      {r.status}
+                    </div>
+                  </div>
+                  <p className="text-sm text-text-dimmed leading-relaxed max-w-[90%]">{r.reason}</p>
+                  <div className="mt-8 flex items-center gap-2 text-[9px] font-black text-white/20 uppercase tracking-widest border-t border-white/5 pt-4">
+                     <FileText className="w-3 h-3" /> Source Regulatory Context: Verified
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 };

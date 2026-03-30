@@ -1,35 +1,34 @@
 import React, { useEffect, useRef } from 'react';
 
 export const CustomCursor = () => {
-  const dotRef = useRef(null);
-  const ringRef = useRef(null);
   const canvasRef = useRef(null);
-  
   const mouse = useRef({ x: 0, y: 0 });
   const ring = useRef({ x: 0, y: 0 });
   const particles = useRef([]);
+  const requestRef = useRef();
 
   useEffect(() => {
     const handleMouseMove = (e) => {
       mouse.current.x = e.clientX;
       mouse.current.y = e.clientY;
       
-      if (dotRef.current) {
-        dotRef.current.style.left = `${e.clientX}px`;
-        dotRef.current.style.top = `${e.clientY}px`;
+      // Update immediate cursor dot position via CSS variables
+      document.documentElement.style.setProperty('--cursor-x', `${e.clientX}px`);
+      document.documentElement.style.setProperty('--cursor-y', `${e.clientY}px`);
+      
+      // Spawn subtle particles sparingly
+      if (Math.random() > 0.3) {
+        particles.current.push({
+          x: e.clientX,
+          y: e.clientY,
+          vy: -Math.random() * 1.5,
+          vx: (Math.random() - 0.5) * 1.5,
+          life: 1.0,
+          size: 1 + Math.random() * 2
+        });
       }
       
-      // Spawn particle
-      particles.current.push({
-        x: e.clientX,
-        y: e.clientY,
-        vy: -Math.random() * 2,
-        vx: (Math.random() - 0.5) * 2,
-        life: 1,
-        maxLife: 0.6 + Math.random() * 0.4
-      });
-      
-      if (particles.current.length > 40) {
+      if (particles.current.length > 30) {
         particles.current.shift();
       }
     };
@@ -59,14 +58,12 @@ export const CustomCursor = () => {
   }, []);
 
   useEffect(() => {
-    let animationFrameId;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    
     const render = () => {
-      // Setup canvas size
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      
+      // Handle resize
       if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
@@ -74,46 +71,37 @@ export const CustomCursor = () => {
       
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Lerp ring
-      ring.current.x += (mouse.current.x - ring.current.x) * 0.12;
-      ring.current.y += (mouse.current.y - ring.current.y) * 0.12;
+      // Smooth lerp for the ring
+      ring.current.x += (mouse.current.x - ring.current.x) * 0.15;
+      ring.current.y += (mouse.current.y - ring.current.y) * 0.15;
       
-      if (ringRef.current) {
-        ringRef.current.style.left = `${ring.current.x}px`;
-        ringRef.current.style.top = `${ring.current.y}px`;
-      }
+      // Update ring position via CSS variables
+      document.documentElement.style.setProperty('--cursor-ring-x', `${ring.current.x}px`);
+      document.documentElement.style.setProperty('--cursor-ring-y', `${ring.current.y}px`);
       
-      // Draw particles
+      // Draw refined particles
       for (let i = particles.current.length - 1; i >= 0; i--) {
         const p = particles.current[i];
         p.x += p.vx;
         p.y += p.vy;
-        p.life -= 1 / 60; // assume 60fps
+        p.life -= 0.015;
         
         if (p.life <= 0) {
           particles.current.splice(i, 1);
           continue;
         }
         
-        const r = 2; // radius
-        const gradient = ctx.createLinearGradient(p.x - r, p.y - r, p.x + r, p.y + r);
-        gradient.addColorStop(0, `rgba(0, 194, 255, ${p.life / p.maxLife})`);
-        gradient.addColorStop(1, `rgba(123, 94, 167, ${p.life / p.maxLife})`);
-        
         ctx.beginPath();
-        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = gradient;
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0, 194, 255, ${p.life * 0.5})`;
         ctx.fill();
       }
       
-      animationFrameId = requestAnimationFrame(render);
+      requestRef.current = requestAnimationFrame(render);
     };
     
-    render();
-    
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-    };
+    requestRef.current = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(requestRef.current);
   }, []);
 
   // Hide on touch devices
@@ -123,9 +111,10 @@ export const CustomCursor = () => {
 
   return (
     <>
-      <div ref={dotRef} className="cursor-dot"></div>
-      <div ref={ringRef} className="cursor-ring"></div>
+      <div className="cursor-dot"></div>
+      <div className="cursor-ring"></div>
       <canvas ref={canvasRef} id="particle-canvas"></canvas>
     </>
   );
 };
+

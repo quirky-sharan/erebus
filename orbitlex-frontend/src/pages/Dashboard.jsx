@@ -1,19 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
-import { Navbar } from '../components/Navbar';
-import StarfieldCanvas from '../components/StarfieldCanvas';
+import { motion } from 'framer-motion';
 import { 
   Activity, 
-  Search, 
   ShieldCheck, 
-  BarChart2, 
+  Radio, 
   History, 
   ArrowRight,
-  TrendingDown,
   Globe,
-  Radio,
   Zap,
-  Box
+  Box,
+  Cpu,
+  Database,
+  Terminal
 } from 'lucide-react';
 import gsap from 'gsap';
 
@@ -24,8 +22,8 @@ const StatCard = ({ title, value, unit, icon: Icon, colorClass, index }) => {
     const obj = { val: 0 };
     gsap.to(obj, {
       val: value,
-      duration: 2,
-      delay: 0.5 + index * 0.1,
+      duration: 1.5,
+      delay: index * 0.1,
       ease: "power2.out",
       onUpdate: () => setCount(Math.floor(obj.val))
     });
@@ -33,98 +31,87 @@ const StatCard = ({ title, value, unit, icon: Icon, colorClass, index }) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ delay: index * 0.1 }}
-      whileHover={{ y: -6, boxShadow: "0 0 20px rgba(0, 194, 255, 0.2)" }}
-      className="glass p-6 rounded-2xl flex items-center justify-between group transition-all"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      className="glass p-6 rounded-2xl rim-highlight group relative overflow-hidden"
     >
-      <div>
-        <h3 className="text-text-muted text-sm font-medium mb-2">{title}</h3>
-        <div className="flex items-baseline gap-1">
-          <span className={`text-3xl font-display font-bold ${colorClass || 'text-white'}`}>
-            {count.toLocaleString()}
-          </span>
-          <span className="text-text-muted text-xs font-mono">{unit}</span>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-text-dimmed mb-1">{title}</p>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-3xl font-mono font-bold text-white tracking-tight">
+              {count.toLocaleString()}
+            </span>
+            <span className="text-[10px] font-mono font-bold text-cobalt/60 uppercase">{unit}</span>
+          </div>
+        </div>
+        <div className="p-2.5 rounded-lg bg-void/50 border border-white/5 text-cobalt group-hover:border-cobalt/40 transition-all">
+          <Icon className="w-5 h-5" />
         </div>
       </div>
-      <div className={`p-4 rounded-xl bg-void group-hover:scale-110 transition-transform ${colorClass || 'text-cyan'}`}>
-        <Icon className="w-6 h-6" />
+      <div className="mt-4 w-full h-1 bg-white/[0.03] rounded-full overflow-hidden">
+          <motion.div 
+            initial={{ width: 0 }}
+            animate={{ width: '70%' }}
+            transition={{ duration: 1.5, delay: 0.5 }}
+            className="h-full bg-gradient-to-r from-cobalt to-indigo-400 opacity-60"
+          />
       </div>
     </motion.div>
   );
 };
 
-const FeatureCTA = ({ title, desc, icon: Icon, path, colorClass }) => (
+const ControlModule = ({ title, desc, icon: Icon, color }) => (
     <motion.div
-        whileHover={{ scale: 1.03, boxShadow: "0 0 30px rgba(0, 194, 255, 0.3)" }}
-        className="glass p-8 rounded-3xl relative overflow-hidden group cursor-pointer"
+        whileHover={{ x: 4 }}
+        className="flex items-center gap-5 p-5 glass rounded-2xl rim-highlight group cursor-pointer"
     >
-        <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br transition-all ${colorClass || 'from-cyan/20 to-transparent'} blur-3xl group-hover:scale-150`}></div>
-        <Icon className={`w-12 h-12 mb-6 ${colorClass ? 'text-white' : 'text-cyan'}`} />
-        <h3 className="text-2xl font-display font-bold text-white mb-3 tracking-wide">{title}</h3>
-        <p className="text-text-muted mb-8 leading-relaxed">{desc}</p>
-        <div className="flex items-center gap-2 text-cyan font-bold group-hover:translate-x-2 transition-transform">
-            Launch Application <ArrowRight className="w-4 h-4" />
+        <div className={`w-12 h-12 rounded-xl bg-void/50 border border-white/5 flex items-center justify-center text-white/80 group-hover:border-${color}/40 transition-all`}>
+            <Icon className="w-6 h-6" />
         </div>
+        <div className="flex-1">
+            <h4 className="text-sm font-bold text-white group-hover:text-cobalt transition-colors">{title}</h4>
+            <p className="text-[11px] text-text-dimmed leading-tight">{desc}</p>
+        </div>
+        <ArrowRight className="w-4 h-4 text-white/10 group-hover:text-cobalt group-hover:translate-x-1 transition-all" />
     </motion.div>
 );
 
 const OrbitViz = () => {
   return (
-    <div className="relative w-full h-[400px] flex items-center justify-center overflow-hidden glass rounded-3xl border border-cyan/10">
-      <div className="absolute inset-0 bg-void/50 pointer-events-none"></div>
+    <div className="relative w-full h-[400px] flex items-center justify-center overflow-hidden bg-void/20 rounded-[2.5rem] border border-white/5 rim-highlight group">
+      {/* Precision Grid */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+           style={{ backgroundImage: 'radial-gradient(var(--color-cobalt) 1px, transparent 0)', backgroundSize: '40px 40px' }} />
       
-      {/* Earth Center */}
-      <div className="relative w-24 h-24 rounded-full bg-void border-[1px] border-cyan/40 flex items-center justify-center shadow-[0_0_50px_rgba(0,194,255,0.2)]">
-        <Globe className="text-cyan w-12 h-12 opacity-80" />
-        <motion.div 
-            animate={{ scale: [1, 1.1, 1], opacity: [0.1, 0.3, 0.1] }}
-            transition={{ duration: 4, repeat: Infinity }}
-            className="absolute inset-0 rounded-full border border-cyan"
-        />
+      {/* Earth Core */}
+      <div className="relative w-32 h-32 rounded-full bg-void border border-white/10 flex items-center justify-center shadow-[0_0_100px_rgba(46,91,255,0.05)]">
+        <Globe className="text-white/20 w-16 h-16" />
+        <div className="absolute inset-0 rounded-full border border-cobalt/20 animate-pulse" />
       </div>
 
-      {/* Orbit Rings and Satellites */}
-      <div className="absolute w-[180px] h-[180px] rounded-full border border-cyan/10 pointer-events-none"></div>
-      <div className="absolute w-[280px] h-[280px] rounded-full border border-cyan/10 pointer-events-none"></div>
-      <div className="absolute w-[380px] h-[380px] rounded-full border border-cyan/10 pointer-events-none"></div>
+      {/* Trajectories */}
+      {[240, 320, 400].map((size, i) => (
+          <div key={i} className="absolute rounded-full border border-white/[0.03]" style={{ width: size, height:size }} />
+      ))}
 
-      {/* Moving Satellites */}
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-        className="absolute w-[180px] h-[180px]"
-      >
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-cyan shadow-[0_0_10px_#00C2FF]" />
+      {/* Active Assets */}
+      <motion.div animate={{ rotate: 360 }} transition={{ duration: 25, repeat: Infinity, ease: "linear" }} className="absolute w-[240px] h-[240px]">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-cobalt shadow-[0_0_10px_rgba(46,91,255,1)]" />
       </motion.div>
 
-      <motion.div
-        animate={{ rotate: -360 }}
-        transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-        className="absolute w-[280px] h-[280px]"
-      >
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-cyan/60" />
+      <motion.div animate={{ rotate: -360 }} transition={{ duration: 40, repeat: Infinity, ease: "linear" }} className="absolute w-[320px] h-[320px]">
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber shadow-[0_0_8px_rgba(245,154,27,1)]" />
       </motion.div>
 
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-        className="absolute w-[380px] h-[380px]"
-      >
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-orbit/60" />
-      </motion.div>
-
-      {/* Labels */}
-      <div className="absolute bottom-6 left-6 flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-mono text-cyan/60">
-              <span className="w-2 h-2 rounded-full bg-cyan shadow-[0_0_8px_#00C2FF]"></span>
-              LEO Band Active
+      {/* Legend */}
+      <div className="absolute bottom-10 left-10 flex gap-6">
+          <div className="flex items-center gap-2 text-[9px] font-black tracking-widest text-text-dimmed uppercase">
+              <span className="w-1.5 h-1.5 rounded-full bg-cobalt" /> Operational
           </div>
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-mono text-orbit/60">
-              <span className="w-2 h-2 rounded-full bg-orbit"></span>
-              MEO/GEO Band
+          <div className="flex items-center gap-2 text-[9px] font-black tracking-widest text-text-dimmed uppercase">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber" /> Potential Risk
           </div>
       </div>
     </div>
@@ -133,148 +120,112 @@ const OrbitViz = () => {
 
 const Dashboard = () => {
     const stats = [
-        { title: 'Active Satellites', value: 8542, unit: 'Objects', icon: Radio, colorClass: 'text-cyan' },
-        { title: 'Compliance Checks', value: 3412, unit: 'Verified', icon: ShieldCheck, colorClass: 'text-green-400' },
-        { title: 'Reports Generated', value: 129, unit: 'PDFs', icon: TrendingDown, colorClass: 'text-purple-400' },
-        { title: 'Debris Tracked', value: 1240, unit: 'Threats', icon: Box, colorClass: 'text-gold' }
+        { title: 'Global Coverage', value: 98.4, unit: '%', icon: Globe, index: 0 },
+        { title: 'System Uptime', value: 99.9, unit: '%', icon: Cpu, index: 1 },
+        { title: 'Active Relays', value: 142, unit: 'Nodes', icon: Radio, index: 2 },
+        { title: 'Data Throughput', value: 4.8, unit: 'GB/S', icon: Database, index: 3 }
     ];
 
-    const headingText = "Mission Control";
-
     return (
-        <div className="min-h-screen bg-void pt-28 pb-20 px-6 overflow-x-hidden">
-            <Navbar />
-            <StarfieldCanvas />
-
-            <div className="container mx-auto max-w-7xl relative z-10">
-                <header className="mb-16">
-                    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-                        <div>
-                            <div className="flex mb-4">
-                                {headingText.split("").map((char, index) => (
-                                    <motion.span
-                                        key={index}
-                                        initial={{ opacity: 0, y: 30 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: index * 0.05, duration: 0.5 }}
-                                        className="font-display text-5xl md:text-7xl font-bold tracking-tight text-white whitespace-pre"
-                                    >
-                                        {char}
-                                    </motion.span>
-                                ))}
-                            </div>
-                            <p className="text-text-muted text-lg max-w-lg">
-                                Real-time orbital intelligence and mission compliance monitoring system.
-                            </p>
-                        </div>
-                        <div className="bg-card/40 border border-cyan/20 px-6 py-4 rounded-2xl flex items-center gap-4">
-                            <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_#22c55e]"></div>
-                            <span className="text-sm font-mono text-cyan truncate">
-                                SYSTEM STATUS: NOMINAL • LATENCY 24MS
-                            </span>
-                        </div>
+        <div className="space-y-10">
+            {/* Header Strategy: Professional & Clean */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                    <div className="flex items-center gap-3 mb-2 px-3 py-1 bg-cobalt/5 border border-cobalt/10 rounded-full w-fit">
+                        <span className="w-2 h-2 rounded-full bg-cobalt animate-pulse" />
+                        <span className="text-[10px] font-black tracking-[0.2em] text-cobalt uppercase">System Status: Nominal</span>
                     </div>
-                </header>
-
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
-                    {stats.map((s, i) => (
-                        <StatCard key={i} {...s} index={i} />
-                    ))}
+                    <h1 className="text-4xl md:text-5xl font-bold tracking-tighter text-white">Orbital Control Center</h1>
                 </div>
-
-                {/* Main Dashboard Sections */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
-                    <div className="lg:col-span-2 space-y-8">
-                        <div className="glass p-8 rounded-3xl relative overflow-hidden">
-                            <div className="flex items-center justify-between mb-8">
-                                <h2 className="text-2xl font-display font-bold text-white flex items-center gap-3">
-                                    <Activity className="text-cyan w-6 h-6" /> Live Space Traffic
-                                </h2>
-                                <button className="text-cyan text-sm font-mono hover:underline">VIEW FULL MAP</button>
-                            </div>
-                            <OrbitViz />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <FeatureCTA 
-                                title="Compliance Engine"
-                                desc="Verify regulatory adherence across five international space debris mitigation frameworks."
-                                icon={ShieldCheck}
-                                path="/compliance"
-                                colorClass="from-cyan/20 to-orbit/5"
-                            />
-                            <FeatureCTA 
-                                title="Deorbit Predictor"
-                                desc="Physics-based probabilistic models for predicting satellite atmospheric reentry timeline."
-                                icon={Zap}
-                                path="/deorbit"
-                                colorClass="from-purple-500/20 to-nebula/5"
-                            />
-                        </div>
+                
+                <div className="flex items-center gap-4 text-right">
+                    <div className="px-5 py-3 glass rounded-2xl rim-highlight">
+                        <p className="text-[9px] font-black text-text-dimmed uppercase tracking-widest leading-none mb-1">Local Time</p>
+                        <p className="text-lg font-mono font-bold text-white leading-none tracking-tight">14:52:08 <span className="text-sm text-text-dimmed">UTC</span></p>
                     </div>
+                </div>
+            </div>
 
-                    <div className="space-y-8">
-                        <div className="glass p-8 rounded-3xl h-full flex flex-col">
-                            <h2 className="text-xl font-display font-bold text-white mb-6 flex items-center gap-3">
-                                <History className="text-cyan w-5 h-5" /> Operation History
+            {/* Metrics Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {stats.map((s) => (
+                    <StatCard key={s.title} {...s} />
+                ))}
+            </div>
+
+            {/* Main Operational Interface */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* Visual Intelligence Section */}
+                <div className="lg:col-span-8 flex flex-col gap-8">
+                    <div className="glass p-8 rounded-[3rem] rim-highlight relative overflow-hidden group">
+                        <div className="flex items-center justify-between mb-8">
+                            <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                                <Activity className="text-cobalt w-5 h-5" /> Real-time Telemetry
                             </h2>
-                            <div className="space-y-6 flex-1 overflow-y-auto max-h-[600px] pr-2">
-                                {[1, 2, 3, 4, 5].map((i) => (
-                                    <motion.div 
-                                        key={i}
-                                        initial={{ opacity: 0, x: 20 }}
-                                        whileInView={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: i * 0.1 }}
-                                        className="group p-4 bg-void/50 border border-cyan/5 rounded-xl hover:border-cyan/20 transition-all cursor-pointer"
-                                    >
-                                        <div className="flex justify-between items-start mb-2">
-                                            <span className="text-white font-bold group-hover:text-cyan transition-colors">STARLINK-3142</span>
-                                            <span className="text-[10px] text-text-muted font-mono uppercase">14:24 UT</span>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex gap-2">
-                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan/10 text-cyan uppercase font-bold">LEO</span>
-                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 uppercase font-bold">COMPLIANT</span>
-                                            </div>
-                                            <ArrowRight className="w-3 h-3 text-text-muted group-hover:text-cyan translate-x-0 group-hover:translate-x-1 transition-all" />
-                                        </div>
-                                    </motion.div>
-                                ))}
+                            <div className="flex gap-2">
+                                <button className="px-4 py-1.5 rounded-lg bg-white/[0.03] text-[9px] font-black uppercase text-white/60 hover:text-white transition-colors border border-white/5">Layer: LEO</button>
+                                <button className="px-4 py-1.5 rounded-lg bg-cobalt/10 text-[9px] font-black uppercase text-cobalt border border-cobalt/20">Expand Console</button>
                             </div>
-                            <button className="w-full mt-8 py-3 glass rounded-xl text-text-muted hover:text-white transition-all text-sm font-bold">
-                                VIEW ALL RECENT ACTIVITY
-                            </button>
                         </div>
+                        <OrbitViz />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <ControlModule 
+                            title="Compliance Engine"
+                            desc="Protocol verification for debris mitigation."
+                            icon={ShieldCheck}
+                            color="cobalt"
+                        />
+                        <ControlModule 
+                            title="Signal Analysis"
+                            desc="Deep spectrum monitoring and relay health."
+                            icon={Radio}
+                            color="amber"
+                        />
                     </div>
                 </div>
 
-                {/* Bottom CTA */}
-                <motion.div 
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    viewport={{ once: true }}
-                    className="p-12 glass rounded-[3rem] text-center relative overflow-hidden bg-gradient-to-r from-void to-card/50 border border-cyan/20"
-                >
-                    <div className="absolute top-0 right-0 p-8">
-                        <Radio className="w-32 h-32 text-cyan/5" />
-                    </div>
-                    <h2 className="text-4xl md:text-5xl font-display font-bold text-white mb-6">Explore the Orbital Record.</h2>
-                    <p className="text-text-muted text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-                        Access live TLE data and metadata for over <span className="text-cyan font-bold">25,000</span> tracked orbital objects directly from the world's most trusted sources.
-                    </p>
-                    <div className="max-w-2xl mx-auto flex items-center glass p-2 rounded-2xl border-cyan/30 bg-void/30">
-                        <Search className="w-6 h-6 text-cyan ml-4" />
-                        <input 
-                            type="text" 
-                            placeholder="Enter satellite name or NORAD ID..." 
-                            className="bg-transparent border-none focus:ring-0 text-white flex-1 p-4 text-lg font-display"
-                        />
-                        <button className="bg-cyan text-void font-bold px-8 py-4 rounded-xl hover:bg-white transition-all">
-                            INITIALIZE SEARCH
+                {/* Tactical Feed & Authorization */}
+                <div className="lg:col-span-4 flex flex-col gap-8">
+                    <div className="glass p-8 rounded-[3rem] rim-highlight flex-1 flex flex-col min-h-[500px]">
+                        <div className="flex items-center justify-between mb-8">
+                            <h2 className="text-lg font-bold text-white flex items-center gap-3">
+                                <Terminal className="text-cobalt w-5 h-5" /> Terminal Logs
+                            </h2>
+                            <span className="text-[10px] font-mono text-text-dimmed px-2 py-1 bg-white/[0.03] rounded">LIVE FEED</span>
+                        </div>
+                        
+                        <div className="space-y-3 flex-1">
+                            {[1, 2, 3, 4, 5, 6].map((i) => (
+                                <div key={i} className="p-4 bg-white/[0.02] border border-white/[0.03] rounded-xl group hover:border-cobalt/20 transition-all cursor-pointer">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-xs font-bold text-white/80 tracking-tight">SIG-74-{1000 + i}</span>
+                                        <span className="text-[9px] font-mono text-cobalt">STABLE</span>
+                                    </div>
+                                    <p className="text-[10px] text-text-dimmed font-mono">Uplink established at 14:2{i} UTC</p>
+                                </div>
+                            ))}
+                        </div>
+
+                        <button className="w-full mt-8 py-4 glass border-white/5 rounded-2xl text-[10px] font-black tracking-widest text-text-dimmed uppercase hover:text-white hover:border-cobalt/40 transition-all">
+                            Export Log History
                         </button>
                     </div>
-                </motion.div>
+
+                    <div className="glass p-10 rounded-[3rem] rim-highlight bg-gradient-to-br from-cobalt/10 to-transparent">
+                        <div className="w-12 h-12 rounded-xl bg-cobalt flex items-center justify-center mb-6 shadow-glow-cobalt">
+                            <Zap className="w-7 h-7 text-white" />
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-3">Priority Action</h3>
+                        <p className="text-xs text-text-dimmed mb-8 leading-relaxed">
+                            System detected 4 unresolved deorbit anomalies. Immediate protocol review required.
+                        </p>
+                        <button className="w-full py-4 bg-white text-void font-black text-[10px] tracking-widest uppercase rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl">
+                            Initiate Protocol
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     );

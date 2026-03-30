@@ -1,78 +1,66 @@
-import React, { useRef, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
-const Stars = ({ count = 3000 }) => {
+const Stars = ({ count = 4000 }) => {
   const points = useRef();
   const { mouse } = useThree();
 
-  const [positions, sizes, colors] = useMemo(() => {
+  const [positions, sizes, colors, sparkle] = useMemo(() => {
     const pos = new Float32Array(count * 3);
     const sz = new Float32Array(count);
     const col = new Float32Array(count * 3);
+    const spk = new Float32Array(count);
     
     for (let i = 0; i < count; i++) {
       const theta = 2 * Math.PI * Math.random();
       const phi = Math.acos(2 * Math.random() - 1);
-      const r = 800 * Math.pow(Math.random(), 0.5); // Focus towards origin
+      const r = 900 * Math.pow(Math.random(), 0.5);
       
       pos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
       pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       pos[i * 3 + 2] = r * Math.cos(phi);
       
-      const rand = Math.random();
-      if (rand < 0.8) {
-        sz[i] = 1;
-      } else if (rand < 0.95) {
-        sz[i] = 2;
-      } else {
-        sz[i] = 3.5; // Large stars
-      }
+      sz[i] = Math.random() < 0.95 ? 0.8 : 2.2;
+      spk[i] = Math.random(); // Initial sparkle phase
 
-      // Slightly varied colors (cold blue, white, faint purple)
       const cRand = Math.random();
-      if (cRand < 0.2) {
-        col[i * 3] = 0.5; col[i * 3 + 1] = 0.8; col[i * 3 + 2] = 1; // Cyanish
-      } else if (cRand < 0.4) {
-        col[i * 3] = 0.8; col[i * 3 + 1] = 0.7; col[i * 3 + 2] = 1; // Purplish
+      if (cRand < 0.1) {
+        col[i * 3] = 0.7; col[i * 3 + 1] = 0.8; col[i * 3 + 2] = 1.0; // Cool Blue
+      } else if (cRand < 0.2) {
+        col[i * 3] = 1.0; col[i * 3 + 1] = 0.9; col[i * 3 + 2] = 0.8; // Faint Warm
       } else {
-        col[i * 3] = 1; col[i * 3 + 1] = 1; col[i * 3 + 2] = 1; // White
+        col[i * 3] = 1; col[i * 3 + 1] = 1; col[i * 3 + 2] = 1; // Pure White
       }
     }
-    return [pos, sz, col];
+    return [pos, sz, col, spk];
   }, [count]);
 
   useFrame((state) => {
     if (!points.current) return;
+    const time = state.clock.getElapsedTime();
     
-    points.current.rotation.y += 0.0001;
-    points.current.rotation.x += 0.00005;
+    points.current.rotation.y += 0.00008;
     
-    // Mouse parallax
-    const targetX = mouse.x * 0.1;
-    const targetY = mouse.y * 0.1;
-    points.current.rotation.x += (targetY - points.current.rotation.x) * 0.01;
-    points.current.rotation.y += (targetX - points.current.rotation.y) * 0.01;
+    // Smooth mouse parallax
+    const targetX = mouse.x * 0.08;
+    const targetY = mouse.y * 0.08;
+    points.current.rotation.x += (targetY - points.current.rotation.x) * 0.02;
+    points.current.rotation.y += (targetX - points.current.rotation.y) * 0.02;
+
+    // Simple scintillation simulation
+    const material = points.current.material;
+    material.opacity = 0.6 + Math.sin(time * 2) * 0.2;
   });
 
   return (
     <points ref={points}>
       <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={count}
-          array={positions}
-          itemSize={3}
-        />
-        <bufferAttribute
-          attach="attributes-color"
-          count={count}
-          array={colors}
-          itemSize={3}
-        />
+        <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
+        <bufferAttribute attach="attributes-color" count={count} array={colors} itemSize={3} />
       </bufferGeometry>
       <pointsMaterial
-        size={1.5}
+        size={0.7}
         vertexColors
         transparent
         opacity={0.8}
@@ -83,84 +71,57 @@ const Stars = ({ count = 3000 }) => {
   );
 };
 
-const Nebula = () => {
-  const spriteRef1 = useRef();
-  const spriteRef2 = useRef();
-  const spriteRef3 = useRef();
+const AtmosphericHaze = () => {
+  return (
+    <mesh position={[0, -280, -200]} rotation={[-Math.PI / 2.2, 0, 0]}>
+      <planeGeometry args={[1200, 1000]} />
+      <meshBasicMaterial 
+        color="#2E5BFF" 
+        transparent 
+        opacity={0.08} 
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+      />
+    </mesh>
+  );
+};
 
-  const texture = useMemo(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 128;
-    const ctx = canvas.getContext('2d');
-    const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-    grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 128, 128);
-    return new THREE.CanvasTexture(canvas);
-  }, []);
-
+const NebulaCluster = () => {
+  const group = useRef();
+  
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
-    if (spriteRef1.current) {
-        spriteRef1.current.position.x = 200 * Math.sin(time * 0.1);
-        spriteRef1.current.position.y = 100 * Math.cos(time * 0.15);
+    if (group.current) {
+        group.current.rotation.z = time * 0.01;
     }
   });
 
   return (
-    <group>
-      <sprite ref={spriteRef1} position={[150, 50, -300]} scale={[400, 400, 1]}>
-        <spriteMaterial map={texture} color="#00C2FF" transparent opacity={0.07} blending={THREE.AdditiveBlending} />
-      </sprite>
-      <sprite ref={spriteRef2} position={[-200, -50, -400]} scale={[500, 500, 1]}>
-        <spriteMaterial map={texture} color="#7B5EA7" transparent opacity={0.05} blending={THREE.AdditiveBlending} />
-      </sprite>
-      <sprite ref={spriteRef3} position={[0, -200, -350]} scale={[450, 450, 1]}>
-        <spriteMaterial map={texture} color="#0057FF" transparent opacity={0.04} blending={THREE.AdditiveBlending} />
-      </sprite>
+    <group ref={group}>
+        <mesh position={[200, 100, -500]}>
+            <sphereGeometry args={[300, 32, 32]} />
+            <meshBasicMaterial color="#1E293B" transparent opacity={0.03} blending={THREE.AdditiveBlending} side={THREE.BackSide} />
+        </mesh>
+        <mesh position={[-300, -200, -600]}>
+            <sphereGeometry args={[400, 32, 32]} />
+            <meshBasicMaterial color="#2E5BFF" transparent opacity={0.02} blending={THREE.AdditiveBlending} side={THREE.BackSide} />
+        </mesh>
     </group>
   );
 };
 
-const ShootingStars = ({ count = 10 }) => {
-    const group = useRef();
-    const stars = useMemo(() => {
-        return Array.from({ length: count }).map(() => ({
-            id: Math.random(),
-            pos: [
-                (Math.random() - 0.5) * 1000,
-                (Math.random() - 0.5) * 1000,
-                -Math.random() * 500
-            ],
-            speed: 0.5 + Math.random() * 2,
-            opacity: 0
-        }));
-    }, [count]);
-
-    return (
-        <group ref={group}>
-            {/* Simple shooting star implementation left for further polish */}
-        </group>
-    );
-};
-
 const StarfieldCanvas = () => {
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-
   return (
-    <div className="fixed top-0 left-0 w-full h-full -z-10 pointer-events-none">
-      <Canvas
-        camera={{ position: [0, 0, 1], fov: 60 }}
-        gl={{ antialias: false, alpha: true }}
-      >
-        <Stars count={isMobile ? 1200 : 3000} />
-        <Nebula />
-        <ambientLight intensity={0.5} />
+    <div className="fixed top-0 left-0 w-full h-full -z-10 pointer-events-none bg-[#05070A]">
+      <Canvas camera={{ position: [0, 0, 1], fov: 60 }} gl={{ antialias: true, alpha: true }}>
+        <Stars count={4000} />
+        <NebulaCluster />
+        <AtmosphericHaze />
+        <ambientLight intensity={1} />
       </Canvas>
     </div>
   );
 };
 
 export default React.memo(StarfieldCanvas);
+

@@ -13,19 +13,21 @@ import Debris from './pages/Debris';
 import Report from './pages/Report';
 import Waste from './pages/Waste';
 
+import { Layout } from './components/Layout';
+
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <CustomCursor />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
+          
           <Route 
             path="/search" 
             element={
               <ProtectedRoute>
-                <Search />
+                <Layout><Search /></Layout>
               </ProtectedRoute>
             } 
           />
@@ -33,7 +35,7 @@ function App() {
             path="/dashboard" 
             element={
               <ProtectedRoute>
-                <Dashboard />
+                <Layout><Dashboard /></Layout>
               </ProtectedRoute>
             } 
           />
@@ -41,7 +43,7 @@ function App() {
             path="/compliance"
             element={
               <ProtectedRoute>
-                <Compliance />
+                <Layout><Compliance /></Layout>
               </ProtectedRoute>
             }
           />
@@ -49,7 +51,7 @@ function App() {
             path="/deorbit"
             element={
               <ProtectedRoute>
-                <Deorbit />
+                <Layout><Deorbit /></Layout>
               </ProtectedRoute>
             }
           />
@@ -57,7 +59,7 @@ function App() {
             path="/debris"
             element={
               <ProtectedRoute>
-                <Debris />
+                <Layout><Debris /></Layout>
               </ProtectedRoute>
             }
           />
@@ -65,7 +67,7 @@ function App() {
             path="/report"
             element={
               <ProtectedRoute>
-                <Report />
+                <Layout><Report /></Layout>
               </ProtectedRoute>
             }
           />
@@ -73,10 +75,11 @@ function App() {
             path="/waste"
             element={
               <ProtectedRoute>
-                <Waste />
+                <Layout><Waste /></Layout>
               </ProtectedRoute>
             }
           />
+
           {/* Default redirect */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           
