@@ -18,6 +18,8 @@ WasteCategory = Literal[
 
 HazardFlag = Literal["battery", "solvent/chemical", "unknown_hazard"]
 
+ConditionQuality = Literal["unknown", "good", "moderate", "poor"]
+
 
 @dataclass(frozen=True)
 class WasteClassification:
@@ -25,6 +27,7 @@ class WasteClassification:
     subtype: str
     contamination_risk: Literal["low", "medium", "high"]
     hazard_flags: list[HazardFlag]
+    condition_quality: ConditionQuality
     confidence: float  # 0..1
 
 
@@ -48,6 +51,14 @@ def _infer_from_description(description: str) -> dict:
         contamination_risk = "high"
     elif any(k in text for k in ["lightly soiled", "smudged", "residue"]):
         contamination_risk = "medium"
+
+    condition_quality: ConditionQuality = "unknown"
+    if any(k in text for k in ["working", "functional", "intact", "no damage", "undamaged", "clean", "new"]):
+        condition_quality = "good"
+    elif any(k in text for k in ["used", "worn", "scratched", "scuffed", "minor damage", "tested ok"]):
+        condition_quality = "moderate"
+    elif any(k in text for k in ["broken", "cracked", "damaged", "leaking", "leak", "burnt", "corroded", "rust", "not working"]):
+        condition_quality = "poor"
 
     subtype = "General"
     if "pet" in text or "bottle" in text:
@@ -73,6 +84,7 @@ def _infer_from_description(description: str) -> dict:
         "contamination_risk": contamination_risk,
         "hazard_flags": hazard_flags,
         "subtype_guess": subtype,
+        "condition_quality": condition_quality,
     }
 
 
@@ -97,12 +109,16 @@ def classify_waste(material: str, description: str | None = None) -> WasteClassi
 
     category: WasteCategory = mapping.get(material_norm, "unknown")  # default safe fallback
     subtype = desc_info["subtype_guess"] if desc else "General"
+    condition_quality = desc_info["condition_quality"]
 
     # Confidence drops if the material selection is "mixed"/"unknown".
     base_conf = 0.85 if category not in ("mixed", "unknown") else 0.55
     # Increase confidence if description gives strong cues (hazards/subtype).
     if desc_info["hazard_flags"] or ("bottle" in _normalize_text(desc) or "pcb" in _normalize_text(desc)):
         base_conf += 0.08
+    if condition_quality != "unknown":
+        # Condition cues increase overall confidence for recovery/reuse decisions.
+        base_conf += 0.05
     base_conf = min(base_conf, 0.95)
 
     return WasteClassification(
@@ -110,6 +126,7 @@ def classify_waste(material: str, description: str | None = None) -> WasteClassi
         subtype=subtype,
         contamination_risk=desc_info["contamination_risk"],
         hazard_flags=desc_info["hazard_flags"],
+        condition_quality=condition_quality,
         confidence=round(base_conf, 2),
     )
 
@@ -118,6 +135,7 @@ def get_sorting_and_segregation(classification: WasteClassification) -> dict:
     c = classification.category
     cont = classification.contamination_risk
     hazards = classification.hazard_flags
+    condition = classification.condition_quality
 
     steps: list[str] = []
     bins: list[str] = []
@@ -154,6 +172,9 @@ def get_sorting_and_segregation(classification: WasteClassification) -> dict:
     if c == "mixed":
         steps.append("For mixed waste, prioritize recovery by separating dominant fractions if known.")
         bins.append("Mixed residual stream (best-effort sorting at facility)")
+
+    if condition == "poor":
+        steps.append("Because item condition appears poor, divert uncertain fractions to certified treatment rather than direct recycling streams.")
 
     if not bins:
         bins.append("Local recycling stream (as defined by region and facility)")
@@ -275,6 +296,7 @@ def get_recovery_estimates(
 ) -> dict:
     c = classification.category
     cont = classification.contamination_risk
+    condition_quality = classification.condition_quality
 
     # Base expected fractions (midpoints); refined by contamination risk.
     if c == "metal":
@@ -312,6 +334,18 @@ def get_recovery_estimates(
     if c in ("paper", "plastic"):
         rec_mid = max(0.05, rec_mid - contamination_penalty)
         reuse_mid = max(0.02, reuse_mid - contamination_penalty / 2)
+
+    # Item condition impacts reuse readiness and (slightly) recovery yield.
+    if condition_quality == "good":
+        if c in ("e-waste", "metal", "glass"):
+            reuse_mid = min(0.98, reuse_mid + 0.08)
+        if c in ("paper", "plastic"):
+            rec_mid = min(0.98, rec_mid + 0.03)
+    elif condition_quality == "poor":
+        if c in ("e-waste", "metal", "glass"):
+            reuse_mid = max(0.01, reuse_mid - 0.07)
+        if c in ("paper", "plastic"):
+            rec_mid = max(0.05, rec_mid - 0.05)
 
     rec_lo, rec_hi = _range(rec_mid, rec_spread)
     reuse_lo, reuse_hi = _range(reuse_mid, reuse_spread)

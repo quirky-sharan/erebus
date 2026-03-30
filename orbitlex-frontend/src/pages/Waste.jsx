@@ -274,7 +274,7 @@ const Waste = () => {
                       color="cyan"
                     />
                     <RangeBar
-                      label="Reusable fraction"
+                      label="Reuse & Recovery Potential"
                       lo={result.recovery_estimates?.reusable_fraction_pct_range?.[0]}
                       hi={result.recovery_estimates?.reusable_fraction_pct_range?.[1]}
                       color="green"

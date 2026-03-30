@@ -12,6 +12,7 @@ from modules.waste_engine import (
 )
 from modules.waste_report import generate_waste_narrative
 from modules.waste_engine import WasteClassification
+from modules.waste_nlp import enrich_classification_llm
 
 
 class WasteAnalyzeRequest(BaseModel):
@@ -33,6 +34,27 @@ class WasteAnalyzeResponse(BaseModel):
 
 def analyze_waste(req: WasteAnalyzeRequest) -> WasteAnalyzeResponse:
     classification = classify_waste(req.material, req.description or "")
+
+    # Priority-1 AI/NLP improvement:
+    # If the heuristic is uncertain/ambiguous, use an LLM-enrichment step that is
+    # grounded with RAG policy chunks.
+    needs_ai = (
+        classification.confidence < 0.72
+        or classification.category in ("unknown", "mixed")
+        or (req.description and len(req.description) > 60)
+    )
+    if needs_ai:
+        try:
+            classification = enrich_classification_llm(
+                material=req.material,
+                description=req.description,
+                region=req.region,
+                fallback=classification,
+            )
+        except Exception:
+            # Best-effort: keep heuristic output on any enrichment failure.
+            pass
+
     segregation = get_sorting_and_segregation(classification)
     techs = get_technology_recommendations(classification)
     recovery = get_recovery_estimates(classification, req.weight_kg)
@@ -53,6 +75,7 @@ def analyze_waste(req: WasteAnalyzeRequest) -> WasteAnalyzeResponse:
             "subtype": classification.subtype,
             "contamination_risk": classification.contamination_risk,
             "hazard_flags": classification.hazard_flags,
+            "condition_quality": classification.condition_quality,
             "confidence": classification.confidence,
         },
         segregation=segregation,

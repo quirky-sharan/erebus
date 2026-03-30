@@ -23,10 +23,25 @@ class WasteRAGSystem:
         self._index_chunks()
 
     def _prepare_chunks(self) -> None:
+        # Approximate "token" chunking by character length.
+        # This keeps retrieval focused and avoids huge paragraphs dominating similarity search.
+        chunk_size = 1200
+        overlap = 200
+
         for doc in self.documents:
-            # Split by paragraph boundaries for better retrieval.
-            parts = [p.strip() for p in doc.split("\n") if p.strip()]
-            self.chunks.extend(parts)
+            text = (doc or "").strip()
+            if not text:
+                continue
+
+            start = 0
+            while start < len(text):
+                end = min(len(text), start + chunk_size)
+                chunk = text[start:end].strip()
+                if chunk:
+                    self.chunks.append(chunk)
+                if end >= len(text):
+                    break
+                start += chunk_size - overlap
 
         # Defensive: avoid empty index.
         if not self.chunks:
