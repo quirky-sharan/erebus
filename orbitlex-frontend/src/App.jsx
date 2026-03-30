@@ -7,6 +7,10 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import SignUp from './pages/SignUp';
 import Search from './pages/Search';
+import Compliance from './pages/Compliance';
+import Deorbit from './pages/Deorbit';
+import Debris from './pages/Debris';
+import Report from './pages/Report';
 
 function App() {
   return (
@@ -31,6 +35,38 @@ function App() {
                 <Dashboard />
               </ProtectedRoute>
             } 
+          />
+          <Route
+            path="/compliance"
+            element={
+              <ProtectedRoute>
+                <Compliance />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/deorbit"
+            element={
+              <ProtectedRoute>
+                <Deorbit />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/debris"
+            element={
+              <ProtectedRoute>
+                <Debris />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/report"
+            element={
+              <ProtectedRoute>
+                <Report />
+              </ProtectedRoute>
+            }
           />
           {/* Default redirect */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

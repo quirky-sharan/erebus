@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Navbar } from '../components/Navbar';
 import StarfieldCanvas from '../components/StarfieldCanvas';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import { 
   Search as SearchIcon, 
   Filter, 
@@ -57,12 +59,24 @@ const SatelliteCard = ({ sat, isSelected, onClick }) => (
 );
 
 const Search = () => {
+    const { user } = useAuth();
+    const navigate = useNavigate();
     const [query, setQuery] = useState('');
     const [results, setResults] = useState([]);
     const [selectedSat, setSelectedSat] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [filter, setFilter] = useState('All');
+
+    const displayResults = results.filter((s) => {
+        if (filter === 'All') return true;
+        if (filter === 'LEO') return s.altitude < 2000;
+        if (filter === 'MEO') return s.altitude >= 2000 && s.altitude < 35786;
+        if (filter === 'GEO') return s.altitude >= 35786;
+        if (filter === 'Active') return (s.status || '').toLowerCase() === 'active';
+        if (filter === 'Defunct') return (s.status || '').toLowerCase() !== 'active';
+        return true;
+    });
 
     const handleSearch = async (e) => {
         if (e) e.preventDefault();
@@ -71,23 +85,34 @@ const Search = () => {
         setLoading(true);
         setError(null);
         try {
-            // Mock data for now until backend is ready
-            const mockResults = [
-                { name: 'ISS (ZARYA)', norad_id: '25544', orbit_type: 'LEO', status: 'Active', country: 'Multi', launch_year: '1998', altitude: 408, inclination: 51.6, operator: 'NASA/Roscosmos' },
-                { name: 'STARLINK-1007', norad_id: '44713', orbit_type: 'LEO', status: 'Active', country: 'USA', launch_year: '2019', altitude: 550, inclination: 53.0, operator: 'SpaceX' },
-                { name: 'COSMOS 2251', norad_id: '22675', orbit_type: 'LEO', status: 'Defunct', country: 'Russia', launch_year: '1993', altitude: 789, inclination: 74.0, operator: 'Russia' }
-            ];
-            
-            // Filter mock data locally
-            const filtered = mockResults.filter(s => 
-                s.name.toLowerCase().includes(query.toLowerCase()) || 
-                s.norad_id.includes(query)
-            );
-            
-            setResults(filtered);
-            if (filtered.length > 0) setSelectedSat(filtered[0]);
+            const token = await user.getIdToken();
+
+            const res = await axios.get(`${API_BASE_URL}/api/search`, {
+                params: { name: query },
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            const sat = res.data;
+
+            // Derive UI-friendly fields (backend can be extended later).
+            const altitude = Number(sat.altitude || 0);
+            const orbit_type = altitude < 2000 ? 'LEO' : altitude < 35786 ? 'MEO' : 'GEO';
+            const launch_year =
+                typeof sat.launch_date === 'string' && sat.launch_date.length >= 4
+                    ? sat.launch_date.slice(0, 4)
+                    : 'Unknown';
+
+            const normalized = {
+                ...sat,
+                orbit_type,
+                launch_year,
+            };
+            setResults([normalized]);
+            setSelectedSat(normalized);
         } catch (err) {
             setError("Failed to fetch satellite data.");
+            setResults([]);
+            setSelectedSat(null);
         } finally {
             setLoading(false);
         }
@@ -141,8 +166,8 @@ const Search = () => {
                                         className="h-28 glass rounded-xl mb-3 animate-pulse"
                                     />
                                 ))
-                            ) : results.length > 0 ? (
-                                results.map((sat, i) => (
+                            ) : displayResults.length > 0 ? (
+                                displayResults.map((sat, i) => (
                                     <SatelliteCard 
                                         key={sat.norad_id} 
                                         sat={sat} 
@@ -199,10 +224,16 @@ const Search = () => {
                                     </div>
 
                                     <div className="w-full lg:w-fit flex flex-wrap gap-4">
-                                        <button className="flex-1 lg:flex-none glass border-cyan/30 text-white font-bold px-6 py-3 rounded-xl hover:bg-cyan hover:text-void transition-all flex items-center justify-center gap-2">
+                                        <button
+                                            onClick={() => navigate('/compliance', { state: { sat: selectedSat } })}
+                                            className="flex-1 lg:flex-none glass border-cyan/30 text-white font-bold px-6 py-3 rounded-xl hover:bg-cyan hover:text-void transition-all flex items-center justify-center gap-2"
+                                        >
                                             <ShieldAlert className="w-4 h-4" /> Run Compliance
                                         </button>
-                                        <button className="flex-1 lg:flex-none bg-cyan text-void font-bold px-6 py-3 rounded-xl hover:bg-white transition-all flex items-center justify-center gap-2">
+                                        <button
+                                            onClick={() => navigate('/report', { state: { sat: selectedSat } })}
+                                            className="flex-1 lg:flex-none bg-cyan text-void font-bold px-6 py-3 rounded-xl hover:bg-white transition-all flex items-center justify-center gap-2"
+                                        >
                                             <FileText className="w-4 h-4" /> Generate Report
                                         </button>
                                     </div>
@@ -239,12 +270,18 @@ const Search = () => {
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div className="glass bg-void/20 border-cyan/10 p-6 rounded-2xl flex flex-col items-center justify-center text-center group cursor-pointer hover:border-cyan/30 transition-all">
+                                    <div
+                                        onClick={() => navigate('/deorbit', { state: { sat: selectedSat } })}
+                                        className="glass bg-void/20 border-cyan/10 p-6 rounded-2xl flex flex-col items-center justify-center text-center group cursor-pointer hover:border-cyan/30 transition-all"
+                                    >
                                         <Zap className="w-8 h-8 text-purple-400 mb-4 group-hover:scale-125 transition-transform" />
                                         <h4 className="font-bold mb-1">Deorbit Predictor</h4>
                                         <p className="text-[10px] text-text-muted">Calculate reentry timeline</p>
                                     </div>
-                                    <div className="glass bg-void/20 border-cyan/10 p-6 rounded-2xl flex flex-col items-center justify-center text-center group cursor-pointer hover:border-cyan/30 transition-all">
+                                    <div
+                                        onClick={() => navigate('/debris', { state: { sat: selectedSat } })}
+                                        className="glass bg-void/20 border-cyan/10 p-6 rounded-2xl flex flex-col items-center justify-center text-center group cursor-pointer hover:border-cyan/30 transition-all"
+                                    >
                                         <Box className="w-8 h-8 text-gold mb-4 group-hover:scale-125 transition-transform" />
                                         <h4 className="font-bold mb-1">Debris Simulator</h4>
                                         <p className="text-[10px] text-text-muted">Analyze collision risks</p>
