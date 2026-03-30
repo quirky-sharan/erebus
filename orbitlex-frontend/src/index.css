@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    @apply bg-void text-white font-body selection:bg-cyan selection:text-void scroll-smooth;
+    cursor: none !important;
+  }
+  
+  * {
+    cursor: none !important;
+  }
+
+  a, button {
+    cursor: none !important;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-card/80 backdrop-blur-xl border border-cyan/20;
+  }
+  .glow-cyan {
+    box-shadow: 0 0 20px rgba(0, 194, 255, 0.3);
+  }
+  .glow-purple {
+    box-shadow: 0 0 20px rgba(123, 94, 167, 0.3);
+  }
+  .glow-gold {
+    box-shadow: 0 0 20px rgba(255, 179, 71, 0.3);
+  }
+  .glow-danger {
+    box-shadow: 0 0 20px rgba(255, 68, 68, 0.3);
+  }
+}
+
+/* Custom Cursor Styles */
+.cursor-dot {
+  width: 8px;
+  height: 8px;
+  background-color: theme('colors.cyan');
+  border-radius: 50%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%, -50%);
+}
+
+.cursor-ring {
+  width: 32px;
+  height: 32px;
+  border: 1.5px solid theme('colors.cyan');
+  border-radius: 50%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 9998;
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease, background-color 0.3s ease;
+}
+
+body.cursor-hover .cursor-ring {
+  width: 48px;
+  height: 48px;
+  background-color: rgba(0, 194, 255, 0.15);
+}
+
+body.cursor-hover .cursor-dot {
+  transform: translate(-50%, -50%) scale(0);
+}
+
+body.cursor-loading .cursor-ring {
+  border-top-color: theme('colors.void');
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+#particle-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9997;
+}
