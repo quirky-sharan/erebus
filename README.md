@@ -45,7 +45,7 @@
 
 ![Satellite Tracking](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcDh4aHV5bmpjaHNicWZ3NjZhZWhkMHYxenl1bDhvNmZ5NnV3dGkxdSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26BRuo6sLetdllPAQ/giphy.gif)
 
-OrbitLex addresses a critical gap in the space industry: the absence of a unified tool for satellite compliance checking, deorbit prediction, and debris risk assessment. Built for the IEEE Hackathon, it brings together live satellite data, regulatory intelligence, and AI-generated reporting into a single accessible platform.
+OrbitLex addresses a critical gap in the space industry: the absence of a unified tool for satellite compliance checking, deorbit prediction, and debris risk assessment. It brings together live satellite data, regulatory intelligence, and AI-generated reporting into a single accessible platform.
 
 <br/>
 
@@ -81,7 +81,6 @@ OrbitLex addresses a critical gap in the space industry: the absence of a unifie
 |---|---|
 | **React 18 + Vite** | Single-page application framework with fast HMR builds |
 | **Three.js** | 3D starfield background, Earth globe, and orbital visualisations |
-| **GSAP** | High-performance animations — text reveals, number counters, scroll triggers |
 | **Framer Motion** | Page transitions, card animations, and component-level motion |
 | **Tailwind CSS v3** | Utility-first CSS framework for the dark space design system |
 | **Firebase (Google OAuth)** | One-click Google sign-in with JWT session management |
