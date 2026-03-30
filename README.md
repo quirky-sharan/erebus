@@ -68,7 +68,6 @@ OrbitLex addresses a critical gap in the space industry: the absence of a unifie
 
 ![React](https://img.shields.io/badge/React_18_+_Vite-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![Three.js](https://img.shields.io/badge/Three.js-000000?style=for-the-badge&logo=three.js&logoColor=white)
-![GSAP](https://img.shields.io/badge/GSAP-88CE02?style=for-the-badge&logo=greensock&logoColor=black)
 ![Framer Motion](https://img.shields.io/badge/Framer_Motion-0055FF?style=for-the-badge&logo=framer&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS_v3-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 ![Firebase](https://img.shields.io/badge/Firebase_Auth-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)
@@ -128,14 +127,6 @@ OrbitLex addresses a critical gap in the space industry: the absence of a unifie
 
 <br/>
 
-### ☁️ Deployment
-
-| Platform | Purpose |
-|---|---|
-| **Vercel** | Frontend hosting with automatic Vite builds from GitHub |
-| **Railway** | Backend hosting with environment variable management |
-
----
 
 ## Project Structure
 
