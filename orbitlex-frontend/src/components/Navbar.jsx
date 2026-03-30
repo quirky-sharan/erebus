@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Box, User, LogOut, Search, Activity, FileText, Settings, LayoutDashboard } from 'lucide-react';
+import { Box, User, LogOut, Search, Activity, FileText, Settings, LayoutDashboard, Rocket } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const Navbar = () => {
@@ -75,6 +75,3 @@ export const Navbar = () => {
         </nav>
     );
 };
-
-// Re-using Rocket icon from Lucide
-import { Rocket } from 'lucide-react';

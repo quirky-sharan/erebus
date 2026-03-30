@@ -2,24 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  html, body {
-    @apply bg-void text-white font-body selection:bg-cyan selection:text-void scroll-smooth;
-    cursor: none !important;
-  }
-  
-  * {
-    cursor: none !important;
-  }
+html, body {
+  background-color: #050A14;
+  color: #ffffff;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  scroll-behavior: smooth;
+  cursor: none !important;
+}
 
-  a, button {
-    cursor: none !important;
-  }
+::selection {
+  background-color: #00C2FF;
+  color: #050A14;
+}
+
+* {
+  cursor: none !important;
+}
+
+a, button {
+  cursor: none !important;
 }
 
 @layer utilities {
   .glass {
-    @apply bg-card/80 backdrop-blur-xl border border-cyan/20;
+    background-color: rgba(13, 27, 62, 0.8);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 194, 255, 0.2);
   }
   .glow-cyan {
     box-shadow: 0 0 20px rgba(0, 194, 255, 0.3);
@@ -39,7 +47,7 @@
 .cursor-dot {
   width: 8px;
   height: 8px;
-  background-color: theme('colors.cyan');
+  background-color: #00C2FF;
   border-radius: 50%;
   position: fixed;
   top: 0;
@@ -52,7 +60,7 @@
 .cursor-ring {
   width: 32px;
   height: 32px;
-  border: 1.5px solid theme('colors.cyan');
+  border: 1.5px solid #00C2FF;
   border-radius: 50%;
   position: fixed;
   top: 0;
@@ -74,7 +82,7 @@ body.cursor-hover .cursor-dot {
 }
 
 body.cursor-loading .cursor-ring {
-  border-top-color: theme('colors.void');
+  border-top-color: #050A14;
   animation: spin 1s linear infinite;
 }
 
