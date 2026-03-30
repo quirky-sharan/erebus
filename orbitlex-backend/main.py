@@ -5,12 +5,17 @@ import os
 from dotenv import load_dotenv
 
 from auth import verify_token
+from modules.satellite import fetch_satellite
+from modules.compliance import check_compliance
+from modules.deorbit import predict_deorbit
+from modules.debris import simulate_debris
+from modules.report import generate_report_narrative, generate_pdf, ReportRequest
 
 load_dotenv()
 
 app = FastAPI(title="OrbitLex Backend")
 
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,https://your-app.vercel.app").split(",")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,https://orbitlex.vercel.app").split(",")
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,30 +32,57 @@ def health_check():
 @app.get("/api/search")
 async def search_satellite(name: str = Query(..., description="Satellite name or NORAD ID"), 
                            user=Depends(verify_token)):
-    # To be implemented: return satellite data
-    return {"message": "Not implemented yet"}
+    try:
+        data = await fetch_satellite(name)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 @app.post("/api/compliance")
-async def get_compliance(sat_data: dict, user=Depends(verify_token)):
-    # To be implemented
-    return {"message": "Not implemented yet"}
+async def get_compliance(sat_data: dict, deorbit_years: float, user=Depends(verify_token)):
+    # sat_data is expected to be a dict from SatelliteData model
+    from modules.satellite import SatelliteData
+    sat = SatelliteData(**sat_data)
+    report = check_compliance(sat, deorbit_years)
+    return report
 
 @app.post("/api/deorbit")
 async def get_deorbit(params: dict, user=Depends(verify_token)):
-    # To be implemented
-    return {"message": "Not implemented yet"}
+    # Expects altitude, inclination, mass, area
+    try:
+        result = predict_deorbit(
+            float(params['altitude']), 
+            float(params['inclination']), 
+            float(params.get('mass', 500)), 
+            float(params.get('area', 5))
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/debris")
 async def get_debris(sat_data: dict, user=Depends(verify_token)):
-    # To be implemented
-    return {"message": "Not implemented yet"}
+    from modules.satellite import SatelliteData
+    sat = SatelliteData(**sat_data)
+    result = simulate_debris(sat)
+    return result
 
 @app.post("/api/report")
-async def get_report_narrative(all_module_outputs: dict, user=Depends(verify_token)):
-    # To be implemented
-    return {"message": "Not implemented yet"}
+async def get_report_narrative_endpoint(req: ReportRequest, user=Depends(verify_token)):
+    try:
+        report = generate_report_narrative(req)
+        return report
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/pdf")
-async def get_pdf(satellite: str, user=Depends(verify_token)):
-    # To be implemented
-    return {"message": "Not implemented yet"}
+async def get_pdf_endpoint(satellite: str, report_data: dict, user=Depends(verify_token)):
+    # For demo, report_data should be passed or stored
+    from modules.report import ReportText
+    report = ReportText(**report_data)
+    pdf_bytes = generate_pdf(satellite, report)
+    return Response(
+        content=pdf_bytes, 
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=orbitlex_{satellite}.pdf"}
+    )
