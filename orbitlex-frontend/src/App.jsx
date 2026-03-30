@@ -11,6 +11,7 @@ import Compliance from './pages/Compliance';
 import Deorbit from './pages/Deorbit';
 import Debris from './pages/Debris';
 import Report from './pages/Report';
+import Waste from './pages/Waste';
 
 function App() {
   return (
@@ -65,6 +66,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Report />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/waste"
+            element={
+              <ProtectedRoute>
+                <Waste />
               </ProtectedRoute>
             }
           />

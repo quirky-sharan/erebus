@@ -10,6 +10,7 @@ from modules.compliance import check_compliance
 from modules.deorbit import predict_deorbit
 from modules.debris import simulate_debris
 from modules.report import generate_report_narrative, generate_pdf, ReportRequest
+from modules.waste import analyze_waste, WasteAnalyzeRequest
 
 load_dotenv()
 
@@ -86,3 +87,19 @@ async def get_pdf_endpoint(satellite: str, report_data: dict, user=Depends(verif
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=orbitlex_{satellite}.pdf"}
     )
+
+@app.post("/api/waste/analyze")
+async def waste_analyze_endpoint(req: WasteAnalyzeRequest, user=Depends(verify_token)):
+    """
+    Priority-1 waste flow:
+    - Segregation & sorting steps (smart/heuristic from NLP)
+    - Safe recycling technologies (per inferred category + hazards)
+    - Recyclability & reusability estimates (fraction ranges + optional kg ranges)
+    - Consumer incentives (points)
+    - Policy & compliance support (RAG-grounded, LLM synthesized)
+    - Circular product design guidance
+    """
+    try:
+        return analyze_waste(req)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

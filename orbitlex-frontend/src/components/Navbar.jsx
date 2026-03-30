@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Box, User, LogOut, Search, Activity, FileText, Settings, LayoutDashboard, Rocket } from 'lucide-react';
+import { Box, User, LogOut, Search, Activity, FileText, Settings, LayoutDashboard, Rocket, Recycle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const Navbar = () => {
@@ -11,6 +11,7 @@ export const Navbar = () => {
     const navLinks = [
         { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         { name: 'Search', path: '/search', icon: Search },
+        { name: 'Waste', path: '/waste', icon: Recycle },
         { name: 'Deorbit', path: '/deorbit', icon: Activity },
         { name: 'Debris', path: '/debris', icon: Box },
         { name: 'Report', path: '/report', icon: FileText },
