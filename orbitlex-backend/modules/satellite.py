@@ -3,6 +3,7 @@ from sgp4.api import Satrec, WGS84
 import numpy as np
 from datetime import datetime, timezone
 import os
+import asyncio
 from pydantic import BaseModel
 from typing import Optional
 
@@ -22,6 +23,75 @@ class SatelliteData(BaseModel):
     launch_date: Optional[str] = "Unknown"
     mission_type: Optional[str] = "Unknown"
     status: Optional[str] = "Unknown"
+
+SPACE_TRACK_LOGIN_URL = "https://www.space-track.org/auth/login"
+SPACE_TRACK_LOGOUT_URL = "https://www.space-track.org/ajaxauth/logout"
+SPACE_TRACK_SATCAT_URL = (
+    "https://www.space-track.org/basicspacedata/query/class/satcat/NORAD_CAT_ID/{id}/format/json"
+)
+
+
+async def _request_json_with_retry(
+    client: httpx.AsyncClient,
+    url: str,
+    attempts: int = 3,
+    retry_delay_s: float = 3.0,
+) -> object:
+    """
+    Space-Track can rate-limit (429). Retry with a fixed delay.
+    Keep the retry logic local to this request lifecycle.
+    """
+    last_exc: Optional[Exception] = None
+    for attempt in range(attempts):
+        try:
+            resp = await client.get(url)
+            if resp.status_code == 429 and attempt < attempts - 1:
+                await asyncio.sleep(retry_delay_s)
+                continue
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as e:
+            last_exc = e
+            if attempt < attempts - 1:
+                await asyncio.sleep(retry_delay_s)
+                continue
+    raise last_exc  # type: ignore[misc]
+
+
+async def _login_space_track(
+    client: httpx.AsyncClient,
+    attempts: int = 3,
+    retry_delay_s: float = 3.0,
+) -> None:
+    # Credentials must come from env vars (never hardcoded).
+    user = os.environ.get("SPACE_TRACK_USER")
+    password = os.environ.get("SPACE_TRACK_PASS")
+    if not user or not password:
+        raise Exception("Missing SPACE_TRACK_USER or SPACE_TRACK_PASS in environment")
+
+    # Space-Track expects POST fields: identity + password.
+    payload = {"identity": user, "password": password}
+    for attempt in range(attempts):
+        resp = await client.post(SPACE_TRACK_LOGIN_URL, data=payload)
+        if resp.status_code == 429 and attempt < attempts - 1:
+            await asyncio.sleep(retry_delay_s)
+            continue
+        # If credentials are wrong, Space-Track typically returns non-2xx.
+        resp.raise_for_status()
+        return
+
+
+async def _fetch_space_track_metadata(client: httpx.AsyncClient, norad_cat_id: str) -> dict:
+    data = await _request_json_with_retry(
+        client,
+        SPACE_TRACK_SATCAT_URL.format(id=norad_cat_id),
+    )
+
+    if isinstance(data, list) and data:
+        return data[0]
+    if isinstance(data, dict):
+        return data
+    return {}
 
 async def fetch_satellite(name_or_id: str) -> SatelliteData:
     # 1. CelesTrak TLE fetch
@@ -70,14 +140,32 @@ async def fetch_satellite(name_or_id: str) -> SatelliteData:
         apogee = a * (1 + eccentricity) - earth_radius
         perigee = a * (1 - eccentricity) - earth_radius
 
-        # 3. Space-Track metadata fetch (Simplified for now, needs credentials)
-        # In a real implementation, we would login and fetch satcat data
-        # For this version, we'll use placeholder data until ST credentials are verified
+        # 3. Space-Track metadata fetch (requires credentials via env vars)
+        # Keep ST session cookies within this request lifecycle.
         operator = "Unknown"
         country = "Unknown"
         launch_date = "Unknown"
         mission_type = "Satellite"
         status = "Active"
+
+        try:
+            await _login_space_track(client)
+            st = await _fetch_space_track_metadata(client, norad_id)
+
+            country = st.get("COUNTRY") or country
+            launch_date = st.get("LAUNCH_DATE") or st.get("LAUNCH") or launch_date
+            mission_type = st.get("OBJECT_TYPE") or mission_type
+            status = st.get("OPERATIONAL_STATUS") or st.get("STATUS") or status
+
+            # Space-Track SATCAT often doesn't return a clear "operator" field.
+            # Best-effort mapping (kept explicit to avoid wrong assumptions).
+            operator = st.get("OWNER") or st.get("OPERATOR") or operator
+        finally:
+            # Try to log out, but never fail the whole request if it errors.
+            try:
+                await client.get(SPACE_TRACK_LOGOUT_URL)
+            except Exception:
+                pass
 
         return SatelliteData(
             name=sat_name,
