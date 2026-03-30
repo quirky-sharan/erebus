@@ -6,9 +6,7 @@ import { CustomCursor } from './components/CustomCursor';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import SignUp from './pages/SignUp';
-// Import other pages as they are built
-// import Search from './pages/Search';
-// import MissionDetail from './pages/MissionDetail';
+import Search from './pages/Search';
 
 function App() {
   return (
@@ -18,6 +16,14 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
+          <Route 
+            path="/search" 
+            element={
+              <ProtectedRoute>
+                <Search />
+              </ProtectedRoute>
+            } 
+          />
           <Route 
             path="/dashboard" 
             element={
