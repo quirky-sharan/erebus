@@ -187,7 +187,6 @@ orbitlex/
 | `FIREBASE_SERVICE_ACCOUNT` | Base64-encoded Firebase service account JSON |
 | `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins |
 
-> ⚠️ Never commit `.env` files to version control. Ensure both are listed in `.gitignore`.
 
 ---
 
